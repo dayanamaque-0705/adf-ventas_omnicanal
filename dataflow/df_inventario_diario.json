@@ -1,0 +1,97 @@
+{
+	"name": "df_inventario_diario",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "inventario_diario_csv",
+						"type": "DatasetReference"
+					},
+					"name": "source1"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "inventario_diario_sql",
+						"type": "DatasetReference"
+					},
+					"name": "sink1"
+				}
+			],
+			"transformations": [
+				{
+					"name": "derivedColumn1"
+				},
+				{
+					"name": "aggregate1"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          inventario_id as string,",
+				"          fecha_inventario as string,",
+				"          sucursal_id as string,",
+				"          producto_id as string,",
+				"          stock_inicial as string,",
+				"          entradas as string,",
+				"          salidas as string,",
+				"          stock_final as string,",
+				"          punto_reorden as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false) ~> source1",
+				"source1 derive(fecha_inventario = toDate(fecha_inventario, 'yyyy-MM-dd'),",
+				"          stock_inicial = toInteger(stock_inicial),",
+				"          entradas = toInteger(entradas),",
+				"          punto_reorden = toInteger(salidas),",
+				"          stock_final = (toInteger(stock_inicial) + toInteger(entradas)) - toInteger(salidas),",
+				"          salidas = toInteger(trim(toString(salidas)))) ~> derivedColumn1",
+				"derivedColumn1 aggregate(groupBy(inventario_id),",
+				"     fecha_inventario = first(fecha_inventario, true()),",
+				"          sucursal_id = first(sucursal_id, true()),",
+				"          producto_id = first(producto_id, true()),",
+				"          stock_inicial = first(stock_inicial, true()),",
+				"          entradas = first(entradas, true()),",
+				"          salida = first(salidas, true()),",
+				"          stock_final = first(stock_final, true()),",
+				"          punto_reorden = first(punto_reorden, true())) ~> aggregate1",
+				"aggregate1 sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          inventario_id as string,",
+				"          fecha_inventario as date,",
+				"          sucursal_id as string,",
+				"          producto_id as string,",
+				"          stock_inicial as integer,",
+				"          entradas as integer,",
+				"          salidas as integer,",
+				"          stock_final as integer,",
+				"          punto_reorden as integer",
+				"     ),",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError',",
+				"     mapColumn(",
+				"          inventario_id,",
+				"          fecha_inventario,",
+				"          sucursal_id,",
+				"          producto_id,",
+				"          stock_inicial,",
+				"          entradas,",
+				"          salidas = salida,",
+				"          stock_final,",
+				"          punto_reorden",
+				"     )) ~> sink1"
+			]
+		}
+	}
+}

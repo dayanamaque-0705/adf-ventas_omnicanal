@@ -1,0 +1,127 @@
+{
+	"name": "df_pedidos",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "pedidos_csv",
+						"type": "DatasetReference"
+					},
+					"name": "source1"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "pedidos_sql",
+						"type": "DatasetReference"
+					},
+					"name": "sink1"
+				}
+			],
+			"transformations": [
+				{
+					"name": "aggregate1"
+				},
+				{
+					"name": "derivedColumn1"
+				},
+				{
+					"name": "split1"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          pedido_id as string,",
+				"          fecha_pedido as string,",
+				"          hora_pedido as string,",
+				"          cliente_id as string,",
+				"          sucursal_id as string,",
+				"          canal as string,",
+				"          tipo_servicio as string,",
+				"          estado_pedido as string,",
+				"          promocion_id as string,",
+				"          subtotal as string,",
+				"          costo_delivery as string,",
+				"          descuento as string,",
+				"          impuesto as string,",
+				"          total_pedido as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false) ~> source1",
+				"source1 aggregate(groupBy(pedido_id),",
+				"     fecha_pedido = first(fecha_pedido, true()),",
+				"          hora_pedido = first(hora_pedido, true()),",
+				"          cliente_id = first(cliente_id, true()),",
+				"          sucursal_id = first(sucursal_id, true()),",
+				"          canal = first(canal, true()),",
+				"          tipo_servicio = first(tipo_servicio, true()),",
+				"          estado_pedido = first(estado_pedido, true()),",
+				"          promocion_id = first(promocion_id, true()),",
+				"          subtotal = first(subtotal, true()),",
+				"          costo_delivery = first(costo_delivery, true()),",
+				"          descuento = first(descuento, true()),",
+				"          impuesto = first(impuesto, true()),",
+				"          total_pedido = first(total_pedido, true())) ~> aggregate1",
+				"aggregate1 derive(fecha_pedido = toDate(trim(toString(fecha_pedido)), 'yyyy-MM-dd'),",
+				"          hora_pedido = toTimestamp(concat(trim(toString(fecha_pedido)), ' ', trim(toString(hora_pedido))), 'yyyy-MM-dd HH:mm:ss'),",
+				"          canal = trim(toString(canal)),",
+				"          tipo_servicio = trim(toString(tipo_servicio)),",
+				"          estado_pedido = initCap(trim(toString(estado_pedido))),",
+				"          promocion_id = iif(isNull(promocion_id) || length(trim(toString(promocion_id))) == 0, toString(null()), trim(toString(promocion_id))),",
+				"          subtotal = toDecimal(replace(trim(toString(subtotal)), ',', '.'), 10, 2),",
+				"          costo_delivery = toDecimal(replace(trim(toString(costo_delivery)), ',', '.'), 10, 2),",
+				"          descuento = toDecimal(replace(trim(toString(descuento)), ',', '.'), 10, 2),",
+				"          impuesto = toDecimal(replace(trim(toString(impuesto)), ',', '.'), 10, 2),",
+				"          total_pedido = toDecimal(replace(trim(toString(total_pedido)), ',', '.'), 10, 2)) ~> derivedColumn1",
+				"derivedColumn1 split(!isNull(pedido_id) && !isNull(cliente_id) && !isNull(sucursal_id) && !isNull(fecha_pedido) && toDecimal(replace(toString(total_pedido), ',', '.')) >= 0.00,",
+				"     disjoint: false) ~> split1@(validos, rechazados)",
+				"split1@validos sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          pedido_id as string,",
+				"          fecha_pedido as date,",
+				"          hora_pedido as timestamp,",
+				"          cliente_id as string,",
+				"          sucursal_id as string,",
+				"          canal as string,",
+				"          tipo_servicio as string,",
+				"          estado_pedido as string,",
+				"          promocion_id as string,",
+				"          subtotal as decimal(12,2),",
+				"          costo_delivery as decimal(12,2),",
+				"          descuento as decimal(12,2),",
+				"          impuesto as decimal(12,2),",
+				"          total_pedido as decimal(12,2)",
+				"     ),",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError',",
+				"     mapColumn(",
+				"          pedido_id,",
+				"          fecha_pedido,",
+				"          hora_pedido,",
+				"          cliente_id,",
+				"          sucursal_id,",
+				"          canal,",
+				"          tipo_servicio,",
+				"          estado_pedido,",
+				"          promocion_id,",
+				"          subtotal,",
+				"          costo_delivery,",
+				"          descuento,",
+				"          impuesto,",
+				"          total_pedido",
+				"     )) ~> sink1"
+			]
+		}
+	}
+}

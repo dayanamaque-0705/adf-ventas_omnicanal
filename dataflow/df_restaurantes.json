@@ -1,0 +1,84 @@
+{
+	"name": "df_restaurantes",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "restaurantes_csv",
+						"type": "DatasetReference"
+					},
+					"name": "source1"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "restaurantes_sql",
+						"type": "DatasetReference"
+					},
+					"name": "sink1"
+				}
+			],
+			"transformations": [
+				{
+					"name": "aggregate1"
+				},
+				{
+					"name": "derivedColumn1"
+				},
+				{
+					"name": "split1"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          restaurante_id as string,",
+				"          nombre_restaurante as string,",
+				"          tipo_cocina as string,",
+				"          calificacion_promedio as string,",
+				"          activo as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false) ~> source1",
+				"source1 aggregate(groupBy(restaurante_id),",
+				"     nombre_restaurante = first(nombre_restaurante, true()),",
+				"          tipo_cocina = first(tipo_cocina, true()),",
+				"          calificacion_promedio = first(calificacion_promedio, true()),",
+				"          activo = first(activo, true())) ~> aggregate1",
+				"aggregate1 derive(nombre_restaurante = iif(isNull(nombre_restaurante) || length(trim(toString(nombre_restaurante))) == 0, 'Sin Nombre', trim(toString(nombre_restaurante))),",
+				"          tipo_cocina = trim(toString(tipo_cocina)),",
+				"          calificacion_promedio = toDecimal(replace(trim(toString(calificacion_promedio)), ',', '.'), 3, 2),",
+				"          activo = iif(trim(lower(toString(activo))) == 'sí' || trim(lower(toString(activo))) == 'si' || trim(lower(toString(activo))) == 'activo', true(), false())) ~> derivedColumn1",
+				"derivedColumn1 split(!isNull(restaurante_id) && !isNull(calificacion_promedio) && calificacion_promedio >= 1.0 && calificacion_promedio <= 5.0,",
+				"     disjoint: false) ~> split1@(validos, rechazados)",
+				"split1@validos sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          restaurante_id as string,",
+				"          nombre_restaurante as string,",
+				"          tipo_cocina as string,",
+				"          calificacion_promedio as decimal(3,2),",
+				"          activo as boolean",
+				"     ),",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError',",
+				"     mapColumn(",
+				"          restaurante_id,",
+				"          nombre_restaurante,",
+				"          tipo_cocina,",
+				"          calificacion_promedio,",
+				"          activo",
+				"     )) ~> sink1"
+			]
+		}
+	}
+}
