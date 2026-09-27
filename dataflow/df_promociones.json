@@ -27,6 +27,9 @@
 				},
 				{
 					"name": "derivedColumn1"
+				},
+				{
+					"name": "split1"
 				}
 			],
 			"scriptLines": [
@@ -47,11 +50,13 @@
 				"          fecha_fin = first(fecha_fin, true()),",
 				"          porcentaje_descuento = first(porcentaje_descuento, true()),",
 				"          canal_aplicable = first(canal_aplicable, true())) ~> aggregate1",
-				"aggregate1 derive(nombre_promocion = trim(toString(nombre_promocion)),",
+				"split1@validos derive(nombre_promocion = trim(toString(nombre_promocion)),",
 				"          fecha_inicio = toDate(trim(toString(fecha_inicio)), 'yyyy-MM-dd'),",
 				"          fecha_fin = toDate(trim(toString(fecha_fin)), 'yyyy-MM-dd'),",
 				"          canal_aplicable = iif(isNull(canal_aplicable) || length(trim(toString(canal_aplicable))) == 0, 'Sin Canal', trim(toString(canal_aplicable))),",
 				"          porcentaje_descuento = toDecimal(replace(toString(porcentaje_descuento), ',', '.'), 5, 2)) ~> derivedColumn1",
+				"aggregate1 split(!isNull(promocion_id) && (isNull(fecha_inicio) || isNull(fecha_fin) || fecha_fin >= fecha_inicio),",
+				"     disjoint: false) ~> split1@(validos, rechazados)",
 				"derivedColumn1 sink(allowSchemaDrift: true,",
 				"     validateSchema: false,",
 				"     input(",
